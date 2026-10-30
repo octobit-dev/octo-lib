@@ -1,0 +1,16 @@
+# cargo-deny configuration. CI runs `cargo deny check licenses`.
+
+[licenses]
+# Permissive licenses only, from the organization rules. Ask before adding any other license.
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "Unicode-3.0",
+    "CC0-1.0",
+]
+# The list is a policy, so licenses no dependency uses yet are expected.
+unused-allowed-license = "allow"
