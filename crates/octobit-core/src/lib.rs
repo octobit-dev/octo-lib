@@ -1,14 +1,10 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+//! Core types of octo-lib: colors, palettes and pixel buffers.
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+#![forbid(unsafe_code)]
+#![deny(missing_docs)]
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+mod color;
+mod palette;
+
+pub use color::Rgba8;
+pub use palette::{MAX_COLORS, Palette, PaletteError};
