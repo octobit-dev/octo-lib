@@ -10,3 +10,10 @@ updates:
     groups:
       cargo:
         patterns: ["*"]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    labels: [chore]
+    commit-message:
+      prefix: chore

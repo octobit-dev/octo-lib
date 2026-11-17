@@ -1,0 +1,44 @@
+name: Release
+
+# Publishes one crate to crates.io when a tag `<crate>-v<version>` is pushed,
+# for example `octobit-core-v0.2.0`. Uses trusted publishing, so no token is stored.
+on:
+  push:
+    tags: ["octobit-*-v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  crates-io:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Rust
+        run: rustup toolchain install stable --profile minimal && rustup default stable
+      - name: Check that the tag matches the crate version
+        id: crate
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          name="${TAG%-v*}"
+          version="${TAG##*-v}"
+          actual=$(cargo metadata --no-deps --format-version 1 --locked \
+            | jq -r --arg name "$name" '.packages[] | select(.name == $name) | .version')
+          if [ "$actual" != "$version" ]; then
+            echo "::error::tag $TAG does not match $name version '${actual}'"
+            exit 1
+          fi
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+      - uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1.0.6
+        id: auth
+      - name: Publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+          CRATE: ${{ steps.crate.outputs.name }}
+        run: cargo publish -p "$CRATE" --locked
