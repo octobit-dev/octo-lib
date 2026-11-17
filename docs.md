@@ -2,7 +2,7 @@
 
 A deterministic pixel art engine in Rust. One codebase for the browser (WebAssembly), Python, native apps and the command line.
 
-Status: 2026-10-29, before M0. This document replaces the vision document from September 2026. Rules for working in this repository are in [CLAUDE.md](CLAUDE.md).
+Status: 2026-11-17, M0 in progress. This document replaces the vision document from September 2026.
 
 ## What it is
 
@@ -171,13 +171,13 @@ The first npm release moves from M4 in the original vision to T2, and the first 
 
 M0 checklist:
 
-- [ ] Cargo workspace (edition 2024) with `octobit-core`; other crates join when they have real code
-- [ ] `LICENSE-MIT`, `LICENSE-APACHE`, README and CONTRIBUTING
+- [x] Cargo workspace (edition 2024) with `octobit-core`; other crates join when they have real code
+- [x] `LICENSE-MIT`, `LICENSE-APACHE`, README and CONTRIBUTING (the organization default from `.github`)
 - [ ] CI on every pull request: format, clippy, tests on native and `wasm32`, license check with cargo-deny
 - [ ] Indexed and RGBA buffers, a palette type, sRGB, linear RGB and OKLab conversions
 - [ ] PNG read and write, including indexed PNG
 - [ ] Golden-image test harness with the first inputs
-- [ ] Ruleset on `main`: pull request, green CI, no force push. No required approvals while you work alone, because GitHub does not let authors approve their own pull requests
+- [x] Ruleset on `main`: pull request, green CI, no force push. No required approvals while you work alone, because GitHub does not let authors approve their own pull requests
 - [ ] A second owner of the octobit-dev organization, so the organization does not depend on one account
 
 ## Distribution and naming
