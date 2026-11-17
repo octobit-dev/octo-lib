@@ -1,14 +1,15 @@
 //! PNG files. Requires the `png` feature, which is on by default.
 //!
 //! Indexed PNG keeps palette indices as they are, so a buffer and its palette survive a
-//! round trip unchanged. It is also the smallest form of a canvas snapshot.
+//! round trip unchanged. It is also the smallest form of a canvas snapshot. RGBA PNG holds
+//! any image, and [`decode_rgba`] reads every kind of PNG.
 
 use std::fmt;
 use std::io::Cursor;
 
-use ::png::{BitDepth, ColorType, Decoder, Encoder};
+use ::png::{BitDepth, ColorType, Decoder, Encoder, Transformations};
 
-use crate::{BufferError, IndexedBuffer, Palette, PaletteError, Rgba8};
+use crate::{BufferError, IndexedBuffer, Palette, PaletteError, Rgba8, RgbaBuffer};
 
 /// Largest image the decoder accepts, in pixels: 64 Mi, for example 8192x8192. Larger
 /// images are rejected before their pixels are allocated.
@@ -160,6 +161,60 @@ pub fn decode_indexed(png: &[u8]) -> Result<(IndexedBuffer, Palette), PngError> 
     Ok((buffer, palette))
 }
 
+/// Encodes a buffer as an 8-bit RGBA PNG.
+///
+/// # Errors
+///
+/// Returns [`PngError::Codec`] if the PNG encoder fails.
+pub fn encode_rgba(buffer: &RgbaBuffer) -> Result<Vec<u8>, PngError> {
+    let mut png = Vec::new();
+    let mut encoder = Encoder::new(&mut png, buffer.width(), buffer.height());
+    encoder.set_color(ColorType::Rgba);
+    encoder.set_depth(BitDepth::Eight);
+    let mut writer = encoder.write_header().map_err(codec)?;
+    writer.write_image_data(buffer.as_bytes()).map_err(codec)?;
+    writer.finish().map_err(codec)?;
+    Ok(png)
+}
+
+/// Decodes a PNG of any color type and bit depth into an RGBA buffer.
+///
+/// Indexed and grayscale images are expanded, 16-bit samples keep their high byte and images
+/// without alpha become opaque. Colors are taken as stored: gamma and color profile chunks
+/// are ignored.
+///
+/// # Errors
+///
+/// Returns [`PngError::TooLarge`] for images with more than 64 Mi pixels and
+/// [`PngError::Codec`] for malformed data.
+pub fn decode_rgba(png: &[u8]) -> Result<RgbaBuffer, PngError> {
+    let mut decoder = Decoder::new(Cursor::new(png));
+    // ALPHA expands indexed, grayscale and RGB images and adds an alpha channel, so the
+    // output is 8-bit RGBA or 8-bit grayscale with alpha.
+    decoder.set_transformations(Transformations::ALPHA | Transformations::STRIP_16);
+    let mut reader = decoder.read_info().map_err(codec)?;
+    let (width, height) = (reader.info().width, reader.info().height);
+    decoded_pixel_count(width, height)?;
+
+    let raw_len = reader
+        .output_buffer_size()
+        .ok_or(PngError::TooLarge { width, height })?;
+    let mut raw = vec![0; raw_len];
+    reader.next_frame(&mut raw).map_err(codec)?;
+
+    let bytes = match reader.output_color_type() {
+        (ColorType::Rgba, BitDepth::Eight) => raw,
+        (ColorType::GrayscaleAlpha, BitDepth::Eight) => raw
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .flat_map(|&[gray, alpha]| [gray, gray, gray, alpha])
+            .collect(),
+        other => return Err(codec(format!("unexpected decoder output {other:?}"))),
+    };
+    Ok(RgbaBuffer::from_bytes(width, height, bytes)?)
+}
+
 fn decoded_pixel_count(width: u32, height: u32) -> Result<usize, PngError> {
     (width as usize)
         .checked_mul(height as usize)
@@ -251,6 +306,30 @@ mod tests {
 
     use super::*;
 
+    fn raw_png(
+        size: (u32, u32),
+        color: ColorType,
+        depth: BitDepth,
+        chunks: (&[u8], &[u8]),
+        data: &[u8],
+    ) -> Vec<u8> {
+        let (palette, trns) = chunks;
+        let mut png = Vec::new();
+        let mut encoder = Encoder::new(&mut png, size.0, size.1);
+        encoder.set_color(color);
+        encoder.set_depth(depth);
+        if !palette.is_empty() {
+            encoder.set_palette(palette.to_vec());
+        }
+        if !trns.is_empty() {
+            encoder.set_trns(trns.to_vec());
+        }
+        let mut writer = encoder.write_header().unwrap();
+        writer.write_image_data(data).unwrap();
+        writer.finish().unwrap();
+        png
+    }
+
     fn png_info(png: &[u8]) -> (BitDepth, bool) {
         let reader = Decoder::new(Cursor::new(png)).read_info().unwrap();
         (reader.info().bit_depth, reader.info().trns.is_some())
@@ -303,14 +382,14 @@ mod tests {
 
     #[test]
     fn decode_rejects_indices_outside_the_palette() {
-        let mut png = Vec::new();
-        let mut encoder = Encoder::new(&mut png, 2, 1);
-        encoder.set_color(ColorType::Indexed);
-        encoder.set_depth(BitDepth::Eight);
-        encoder.set_palette(vec![0, 0, 0, 255, 255, 255]);
-        let mut writer = encoder.write_header().unwrap();
-        writer.write_image_data(&[1, 5]).unwrap();
-        writer.finish().unwrap();
+        let palette = [0, 0, 0, 255, 255, 255];
+        let png = raw_png(
+            (2, 1),
+            ColorType::Indexed,
+            BitDepth::Eight,
+            (&palette, &[]),
+            &[1, 5],
+        );
 
         assert_eq!(
             decode_indexed(&png),
@@ -324,12 +403,13 @@ mod tests {
 
     #[test]
     fn decode_rejects_other_color_types() {
-        let mut png = Vec::new();
-        let mut encoder = Encoder::new(&mut png, 1, 1);
-        encoder.set_color(ColorType::Rgb);
-        let mut writer = encoder.write_header().unwrap();
-        writer.write_image_data(&[1, 2, 3]).unwrap();
-        writer.finish().unwrap();
+        let png = raw_png(
+            (1, 1),
+            ColorType::Rgb,
+            BitDepth::Eight,
+            (&[], &[]),
+            &[1, 2, 3],
+        );
 
         assert_eq!(decode_indexed(&png), Err(PngError::NotIndexed));
     }
@@ -354,6 +434,82 @@ mod tests {
         );
     }
 
+    #[test]
+    fn encodes_rgba_as_8_bit_rgba() {
+        let buffer = RgbaBuffer::new(3, 2, Rgba8::new(1, 2, 3, 4)).unwrap();
+        let png = encode_rgba(&buffer).unwrap();
+        let reader = Decoder::new(Cursor::new(&png[..])).read_info().unwrap();
+
+        assert_eq!(
+            (reader.info().color_type, reader.info().bit_depth),
+            (ColorType::Rgba, BitDepth::Eight)
+        );
+    }
+
+    #[test]
+    fn decodes_every_color_type_to_rgba() {
+        let none: (&[u8], &[u8]) = (&[], &[]);
+        // Color type, bit depth, palette and tRNS, image data, expected RGBA of 2x1 pixels.
+        type Case<'a> = (ColorType, BitDepth, (&'a [u8], &'a [u8]), &'a [u8], [u8; 8]);
+        let cases: [Case; 6] = [
+            (
+                ColorType::Grayscale,
+                BitDepth::One,
+                none,
+                &[0b1000_0000],
+                [255, 255, 255, 255, 0, 0, 0, 255],
+            ),
+            (
+                ColorType::Grayscale,
+                BitDepth::Eight,
+                none,
+                &[10, 20],
+                [10, 10, 10, 255, 20, 20, 20, 255],
+            ),
+            (
+                ColorType::GrayscaleAlpha,
+                BitDepth::Eight,
+                none,
+                &[10, 0, 20, 128],
+                [10, 10, 10, 0, 20, 20, 20, 128],
+            ),
+            (
+                ColorType::Rgb,
+                BitDepth::Sixteen,
+                none,
+                &[1, 99, 2, 99, 3, 99, 4, 99, 5, 99, 6, 99],
+                [1, 2, 3, 255, 4, 5, 6, 255],
+            ),
+            (
+                ColorType::Rgba,
+                BitDepth::Eight,
+                none,
+                &[1, 2, 3, 4, 5, 6, 7, 8],
+                [1, 2, 3, 4, 5, 6, 7, 8],
+            ),
+            (
+                ColorType::Indexed,
+                BitDepth::Two,
+                (&[1, 2, 3, 4, 5, 6], &[0]),
+                &[0b0001_0000],
+                [1, 2, 3, 0, 4, 5, 6, 255],
+            ),
+        ];
+
+        for (color, depth, chunks, data, expected) in cases {
+            let png = raw_png((2, 1), color, depth, chunks, data);
+            let buffer = decode_rgba(&png).unwrap();
+            assert_eq!(buffer.as_bytes(), &expected, "{color:?} at {depth:?}");
+        }
+    }
+
+    fn rgba_buffer() -> impl Strategy<Value = RgbaBuffer> {
+        (1u32..20, 1u32..20).prop_flat_map(|(width, height)| {
+            vec(any::<u8>(), (width * height * 4) as usize)
+                .prop_map(move |bytes| RgbaBuffer::from_bytes(width, height, bytes).unwrap())
+        })
+    }
+
     fn buffer_and_palette() -> impl Strategy<Value = (IndexedBuffer, Palette)> {
         let colors = vec(any::<[u8; 4]>(), 1..=256);
         (1u32..20, 1u32..20, colors).prop_flat_map(|(width, height, colors)| {
@@ -374,6 +530,12 @@ mod tests {
         fn round_trip_keeps_buffer_and_palette((buffer, palette) in buffer_and_palette()) {
             let png = encode_indexed(&buffer, &palette).unwrap();
             prop_assert_eq!(decode_indexed(&png), Ok((buffer, palette)));
+        }
+
+        #[test]
+        fn rgba_round_trip_keeps_every_byte(buffer in rgba_buffer()) {
+            let png = encode_rgba(&buffer).unwrap();
+            prop_assert_eq!(decode_rgba(&png), Ok(buffer));
         }
     }
 }

@@ -2,7 +2,8 @@
 //!
 //! A canvas is an [`IndexedBuffer`] of palette indices. A snapshot is its pixels plus its
 //! size, and [`IndexedBuffer::diff`] lists the pixels that changed between two snapshots.
-//! The `png` module, on by default, stores a canvas and its palette as indexed PNG.
+//! [`RgbaBuffer`] holds any image as RGBA bytes. The `png` module, on by default, reads and
+//! writes indexed PNG for a canvas and its palette, and RGBA PNG for everything else.
 //!
 //! ```
 //! use octobit_core::{IndexedBuffer, Palette, PixelChange, Rgba8};
@@ -34,7 +35,9 @@ mod indexed;
 mod palette;
 #[cfg(feature = "png")]
 pub mod png;
+mod rgba;
 
 pub use color::Rgba8;
 pub use indexed::{BufferError, IndexedBuffer, PixelChange};
 pub use palette::{MAX_COLORS, Palette, PaletteError};
+pub use rgba::RgbaBuffer;

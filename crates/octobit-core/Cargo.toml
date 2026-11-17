@@ -1,7 +1,7 @@
 [package]
 name = "octobit-core"
 version = "0.1.0"
-description = "Core types of octo-lib, a deterministic pixel art engine: colors, palettes and indexed pixel buffers"
+description = "Core types of octo-lib, a deterministic pixel art engine: colors, palettes, pixel buffers and PNG"
 keywords = ["pixel-art", "palette", "indexed-color", "image", "gamedev"]
 categories = ["graphics", "multimedia::images", "game-development"]
 readme.workspace = true
@@ -17,5 +17,5 @@ proptest = { version = "1.12", default-features = false, features = ["std"] }
 
 [features]
 default = ["png"]
-# Indexed PNG read and write.
+# PNG read and write, indexed and RGBA.
 png = ["dep:png"]

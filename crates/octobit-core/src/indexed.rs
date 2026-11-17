@@ -26,7 +26,7 @@ pub struct PixelChange {
     pub index: u8,
 }
 
-/// Errors from creating or changing an [`IndexedBuffer`].
+/// Errors from creating or changing an [`IndexedBuffer`] or an [`RgbaBuffer`](crate::RgbaBuffer).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BufferError {
     /// The width or the height is zero.
@@ -38,9 +38,9 @@ pub enum BufferError {
         /// Requested height.
         height: u32,
     },
-    /// The pixel data does not hold exactly `width * height` bytes.
+    /// The pixel data does not have the length that the width and height require.
     LengthMismatch {
-        /// `width * height`.
+        /// The length in bytes that the width and height require.
         expected: usize,
         /// The length of the pixel data.
         actual: usize,
@@ -64,7 +64,7 @@ impl fmt::Display for BufferError {
                 write!(f, "a {width}x{height} buffer does not fit in memory")
             }
             Self::LengthMismatch { expected, actual } => {
-                write!(f, "expected {expected} pixels, got {actual}")
+                write!(f, "expected {expected} bytes of pixel data, got {actual}")
             }
             Self::OutOfBounds { x, y } => write!(f, "pixel ({x}, {y}) is outside the buffer"),
             Self::SizeMismatch => write!(f, "buffers have different sizes"),
@@ -202,7 +202,7 @@ impl IndexedBuffer {
     }
 }
 
-fn pixel_count(width: u32, height: u32) -> Result<usize, BufferError> {
+pub(crate) fn pixel_count(width: u32, height: u32) -> Result<usize, BufferError> {
     if width == 0 || height == 0 {
         return Err(BufferError::ZeroSize);
     }
