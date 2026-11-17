@@ -175,7 +175,7 @@ M0 checklist:
 - [x] `LICENSE-MIT`, `LICENSE-APACHE`, README and CONTRIBUTING (the organization default from `.github`)
 - [ ] CI on every pull request: format, clippy, tests on native and `wasm32`, license check with cargo-deny
 - [ ] Indexed and RGBA buffers, a palette type, sRGB, linear RGB and OKLab conversions
-- [ ] PNG read and write, including indexed PNG
+- [x] PNG read and write, including indexed PNG
 - [ ] Golden-image test harness with the first inputs
 - [x] Ruleset on `main`: pull request, green CI, no force push. No required approvals while you work alone, because GitHub does not let authors approve their own pull requests
 - [ ] A second owner of the octobit-dev organization, so the organization does not depend on one account

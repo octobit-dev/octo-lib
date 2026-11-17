@@ -20,7 +20,7 @@ Add the core crate to a Rust project:
 cargo add octobit-core
 ```
 
-It holds colors, palettes and indexed pixel buffers with snapshots and diffs. API docs are on [docs.rs](https://docs.rs/octobit-core).
+It holds colors, palettes, indexed and RGBA pixel buffers, snapshots and diffs, and PNG read and write. API docs are on [docs.rs](https://docs.rs/octobit-core).
 
 ## Build
 
