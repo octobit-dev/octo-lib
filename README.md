@@ -2,7 +2,7 @@
 
 A deterministic pixel art engine in Rust. One codebase for the browser (WebAssembly), Python, native apps and the `octo` command-line tool.
 
-Status: before the first release. The design document, roadmap and decision log are in [docs.md](docs.md).
+Status: early development, milestone M0. The design document, roadmap and decision log are in [docs.md](docs.md).
 
 ## Crates
 
@@ -14,7 +14,13 @@ Other crates join the workspace when they have real code.
 
 ## Install
 
-Nothing is published yet. Install instructions come with the first release of `octobit-core` on crates.io.
+Add the core crate to a Rust project:
+
+```
+cargo add octobit-core
+```
+
+It holds colors, palettes and indexed pixel buffers with snapshots and diffs. API docs are on [docs.rs](https://docs.rs/octobit-core).
 
 ## Build
 

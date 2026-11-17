@@ -1,6 +1,10 @@
 [package]
 name = "octobit-core"
 version = "0.1.0"
+description = "Core types of octo-lib, a deterministic pixel art engine: colors, palettes and indexed pixel buffers"
+keywords = ["pixel-art", "palette", "indexed-color", "image", "gamedev"]
+categories = ["graphics", "multimedia::images", "game-development"]
+readme.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
