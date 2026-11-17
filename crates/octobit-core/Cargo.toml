@@ -10,6 +10,12 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+png = { version = "0.18.1", optional = true }
 
 [dev-dependencies]
 proptest = { version = "1.12", default-features = false, features = ["std"] }
+
+[features]
+default = ["png"]
+# Indexed PNG read and write.
+png = ["dep:png"]
